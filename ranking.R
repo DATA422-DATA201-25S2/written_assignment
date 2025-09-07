@@ -2,8 +2,8 @@
 alpha <- 0.9
 
 # Load and scale scores to 0-1
-input_data <- read_csv("synthetic_data.csv") %>%
-  select(reviewer, submission, reviewed_rank) %>%
+input_data <- rankings_clean %>%
+  select(reviewer = ranker, submission = allocated, reviewed_rank = ranking) %>%
   mutate(review_scaled = reviewed_rank / max(reviewed_rank), .keep = "unused")
 
 # Initialise rankings, e.g., make global list
@@ -64,14 +64,43 @@ while (change > 0.000000001) {
     pull()
 }
 
+################### TEMPORARY CHECK OMITING NA
+global_ranks <- global_ranks %>%
+  na.omit()
+
 #### Evaluating the algorithm.
+library(ggthemr)
+ggthemr("fresh")
+
+global_ranks %>%
+  mutate(iteration = as.factor(iteration)) %>%
+  ggplot(aes(x=global_rank, color=iteration)) +
+  geom_density(size = 2)
+
+global_ranks %>%
+  mutate(iteration = as.factor(iteration)) %>%
+  ggplot(aes(x=global_rank, color=iteration)) +
+  geom_density(size = 2)
+
+global_ranks %>%
+  mutate(
+    iteration = as.factor(iteration),
+    submission = fct_reorder(as.factor(submission), global_rank, .desc = TRUE)
+  ) %>%
+  ggplot(aes(x = submission, y = global_rank, group = iteration, color = iteration)) +
+  geom_point()
+
 global_ranks %>%
   ggplot(aes(x=iteration, y=global_rank, group=submission)) +
   geom_line()
 
 global_ranks %>%
+  na.omit() %>%
   filter(iteration %in% c(min(iteration), max(iteration))) %>%
-  pivot_wider(names_from = iteration, values_from = global_rank)
+  pivot_wider(names_from = iteration, values_from = global_rank) %>%
+  mutate(diff = `2` - `1`) %>%
+  ggplot(aes(x=diff)) +
+  geom_density(size = 2)
 
 test_scores <- bind_rows(
   global_ranks %>%
