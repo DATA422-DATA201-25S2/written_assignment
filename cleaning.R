@@ -3,7 +3,7 @@ library(tidyverse)
 library(stringr)
 
 # Needed to link identifier in filename with student id
-participants <- read_csv("input/Grades-DATA201-DATA422-25S2-Written Advice on Māori Data Governance and Sovereignty-4325065.csv") %>%
+participants_writing <- read_csv("input/Grades-DATA201-DATA422-25S2-Written Advice on Māori Data Governance and Sovereignty-4325065.csv") %>%
   janitor::clean_names() %>%
   filter(status == "Submitted for grading -  -") %>%
   mutate(identifier = str_split_i(identifier, " ", 2)) %>%

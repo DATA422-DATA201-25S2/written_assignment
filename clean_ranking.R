@@ -1,26 +1,31 @@
 library(tidyverse)
 library(stringr)
 
-participants <- read_csv("Grades-DATA201-DATA422-25S2-Written Assignment Ranking-4370474.csv") %>%
+participants_ranking <- read_csv("input/Grades-DATA201-DATA422-25S2-Written Assignment Ranking-4370474.csv") %>%
   janitor::clean_names() %>%
   filter(status == "Submitted for grading -  -") %>%
   mutate(identifier = str_split_i(identifier, " ", 2)) %>%
-  select(id_number, identifier)
+  select(id_number, identifier, email_address)
+
+# I used this to get emails and alert people to resubmit.
+problem_children <- read_csv("penalty_list.csv") %>%
+  mutate(identifier = as.character(identifier)) %>%
+  left_join(participants_ranking, by = "identifier")
 
 # Warning - destructively renames files
 #file.rename(
-  list.files("rankings/", full.names = TRUE),
+  list.files("input/rankings/", full.names = TRUE),
   paste0(
-    "rankings/",
-    str_split_i(list.files("rankings/"), "_", 2),
+    "input/rankings/",
+    str_split_i(list.files("input/rankings/"), "_", 2),
     ".",
-    str_split_i(list.files("rankings/"), "\\.", -1)
+    str_split_i(list.files("input/rankings/"), "\\.", -1)
   )
 )
 
 # Check for any students who somehow fucked up the file format
 # I'm sad that I had to check this
-str_split_i(list.files("rankings/"), "\\.", -1)
+str_split_i(list.files("input/rankings/"), "\\.", -1)
 
 file_checker <- function(form) {
   ncol(form) == 2 &
@@ -30,11 +35,12 @@ file_checker <- function(form) {
 
 # This was super fiddly, check penalty_list.csv for what people fucked up
 # It boggles the mind
-for (file in list.files("rankings", full.names = TRUE)) {
+########### It currently deletes anything it can't load for testing purposes.
+for (file in list.files("input/rankings", full.names = TRUE)) {
   tryCatch(
     {file_checker(read_csv(file, col_types = cols()))},
-    error = function(cond) {print(file)},
-    warning = function(cond) {print(file)}
+    error = function(cond) {file.remove(file)},
+    warning = function(cond) {file.remove(file)}
   )
 }
 
@@ -46,11 +52,11 @@ rankings_raw <- tibble(
   ranker = character()
 )
 
-for (file in list.files("rankings", full.names = TRUE)) {
+for (file in list.files("input/rankings", full.names = TRUE)) {
   rankings_raw <- bind_rows(
     rankings_raw,
     read_csv(file) %>%
-      mutate(ranker = substr(file, 10, 16))
+      mutate(ranker = substr(file, 16, 22))
     )
 }
 
@@ -59,5 +65,12 @@ people_who_cant_count <- rankings_raw %>%
   summarise(m = mean(ranking), .by = ranker) %>%
   filter(m != 3)
 
-rankings_raw %>%
-  filter(!(ranker %in% people_who_cant_count$ranker))
+rankings_clean <- rankings_raw %>%
+  filter(!(ranker %in% people_who_cant_count$ranker)) %>%
+  select(allocated, ranking, ranker) %>%
+  mutate(allocated = as.character(allocated)) %>%
+  left_join(participants_writing, by = c("allocated" = "identifier")) %>%
+  mutate(allocated = id_number, .keep = "unused") %>%
+  left_join(participants_ranking, by = c("ranker" = "identifier")) %>%
+  mutate(ranker = id_number, .keep = "unused")
+  
