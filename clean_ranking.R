@@ -39,8 +39,10 @@ file_checker <- function(form) {
 for (file in list.files("input/rankings", full.names = TRUE)) {
   tryCatch(
     {file_checker(read_csv(file, col_types = cols()))},
-    error = function(cond) {file.remove(file)},
-    warning = function(cond) {file.remove(file)}
+    error = function(cond) {print(file)},
+    warning = function(cond) {print(file)}
+    #error = function(cond) {file.remove(file)},
+    #warning = function(cond) {file.remove(file)}
   )
 }
 
@@ -56,7 +58,7 @@ for (file in list.files("input/rankings", full.names = TRUE)) {
   rankings_raw <- bind_rows(
     rankings_raw,
     read_csv(file) %>%
-      mutate(ranker = substr(file, 16, 22))
+      mutate(ranker = substr(file, 16, 23))
     )
 }
 
@@ -66,9 +68,12 @@ people_who_cant_count <- rankings_raw %>%
   filter(m != 3)
 
 rankings_clean <- rankings_raw %>%
+  # Remove people that didn't correctly rank
   filter(!(ranker %in% people_who_cant_count$ranker)) %>%
   select(allocated, ranking, ranker) %>%
   mutate(allocated = as.character(allocated)) %>%
+  # Concording from submission IDs to student IDs
+  # Note submission ID is not consistent between submission and ranker
   left_join(participants_writing, by = c("allocated" = "identifier")) %>%
   mutate(allocated = id_number, .keep = "unused") %>%
   left_join(participants_ranking, by = c("ranker" = "identifier")) %>%
