@@ -1,5 +1,8 @@
+library(ggthemr)
+ggthemr("fresh")
 
-alpha <- 0.9
+# Alpha changes how much you weight based on grade of the person ranking
+alpha <- 0.5
 
 # Load and scale scores to 0-1
 input_data <- rankings_clean %>%
@@ -50,7 +53,7 @@ peer_ranker <- function(input_data, global_ranks, agents) {
 
 change <- 1
 
-while (change > 0.000000001) {
+while (change > 0.0000001) {
   global_ranks <- bind_rows(
     global_ranks,
     peer_ranker(input_data, global_ranks, agents)
@@ -64,25 +67,17 @@ while (change > 0.000000001) {
     pull()
 }
 
-################### TEMPORARY CHECK OMITING NA
-global_ranks <- global_ranks %>%
-  na.omit()
+max(global_ranks$iteration)
 
 #### Evaluating the algorithm.
-library(ggthemr)
-ggthemr("fresh")
-
 global_ranks %>%
+  filter(iteration %in% c(1, 12, 25)) %>%
   mutate(iteration = as.factor(iteration)) %>%
   ggplot(aes(x=global_rank, color=iteration)) +
   geom_density(size = 2)
 
 global_ranks %>%
-  mutate(iteration = as.factor(iteration)) %>%
-  ggplot(aes(x=global_rank, color=iteration)) +
-  geom_density(size = 2)
-
-global_ranks %>%
+  filter(iteration %in% c(1, 6, 12)) %>%
   mutate(
     iteration = as.factor(iteration),
     submission = fct_reorder(as.factor(submission), global_rank, .desc = TRUE)
@@ -94,48 +89,17 @@ global_ranks %>%
   ggplot(aes(x=iteration, y=global_rank, group=submission)) +
   geom_line()
 
+# It converged in one iterations.
 global_ranks %>%
   na.omit() %>%
   filter(iteration %in% c(min(iteration), max(iteration))) %>%
   pivot_wider(names_from = iteration, values_from = global_rank) %>%
-  mutate(diff = `2` - `1`) %>%
+  mutate(diff = `25` - `1`) %>%
   ggplot(aes(x=diff)) +
   geom_density(size = 2)
 
-test_scores <- bind_rows(
-  global_ranks %>%
-    filter(iteration %in% c(min(iteration), max(iteration))),
-  read_csv("synthetic_data.csv") %>%
-    mutate(iteration = -99) %>%
-    select(submission, iteration, global_rank = submission_rank) %>%
-    mutate(global_rank = global_rank / max(global_rank), .keep = "unused") %>%
-    distinct()
-) 
-
-test_scores %>%
-  mutate(iteration = as.factor(iteration)) %>%
-  ggplot(aes(x=submission, y=global_rank, group=iteration, color=iteration)) +
-  geom_point() +
-  coord_flip()
-
-test_scores %>%
-  mutate(iteration = as.factor(iteration)) %>%
-  ggplot(aes(x=global_rank, group=iteration, color=iteration)) +
-  geom_density()
-
-## Compare the rank orders
-test_scores %>%
-  filter(iteration != 1) %>%
-  mutate(
-    rank = rank(global_rank, ties.method = "first"),
-    .by = iteration,
-    .keep = "unused"
-    ) %>%
-  mutate(
-    iteration = ifelse(iteration == -99, "truth", "algo")
-  ) %>%
-  pivot_wider(
-    names_from = iteration, values_from = rank
-  ) %>%
-  summarise(mean(abs(algo - truth) < 5))
-  
+global_ranks %>%
+  filter(iteration == max(iteration)) %>%
+  mutate(submission = as.double(submission)) %>%
+  left_join(participants_writing, by = c("submission" = "id_number")) %>%
+  arrange(global_rank)

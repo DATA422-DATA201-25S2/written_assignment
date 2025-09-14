@@ -3,9 +3,9 @@ library(stringr)
 
 participants_ranking <- read_csv("input/Grades-DATA201-DATA422-25S2-Written Assignment Ranking-4370474.csv") %>%
   janitor::clean_names() %>%
-  filter(status == "Submitted for grading -  -") %>%
+  #filter(status == "Submitted for grading -  -") %>%
   mutate(identifier = str_split_i(identifier, " ", 2)) %>%
-  select(id_number, identifier, email_address)
+  select(id_number, identifier)
 
 # I used this to get emails and alert people to resubmit.
 problem_children <- read_csv("penalty_list.csv") %>%
@@ -75,7 +75,7 @@ rankings_clean <- rankings_raw %>%
   # Concording from submission IDs to student IDs
   # Note submission ID is not consistent between submission and ranker
   left_join(participants_writing, by = c("allocated" = "identifier")) %>%
-  mutate(allocated = id_number, .keep = "unused") %>%
-  left_join(participants_ranking, by = c("ranker" = "identifier")) %>%
-  mutate(ranker = id_number, .keep = "unused")
+  mutate(allocated = as.character(id_number), .keep = "unused")
+  #left_join(participants_ranking, by = c("ranker" = "identifier")) %>%
+  #mutate(ranker = id_number, .keep = "unused")
   
